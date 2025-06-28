@@ -25,6 +25,15 @@ function escapeMarkdown(text) {
 let startTime = Date.now();
 const adminSession = new Map();
 
+function chunkArray(array, size) {
+  const chunks = [];
+  for (let i = 0; i < array.length; i += size) {
+    chunks.push(array.slice(i, i + size));
+  }
+  return chunks;
+}
+
+
 bot.on("message", async (msg) => {
   const chatId = msg.chat.id;
   const text = msg.text?.trim();
@@ -176,9 +185,21 @@ bot.on("message", async (msg) => {
         logRequest("tiktok");
 
         if (result.type === "slide") {
-          await bot.sendMediaGroup(chatId, result.images);
-          return await bot.deleteMessage(chatId, waitingMsg.message_id).catch(() => {});
-        }
+  const chunks = chunkArray(result.images, 10); // Telegram: max 10 media per album
+
+  for (let i = 0; i < chunks.length; i++) {
+    const group = chunks[i];
+
+    await bot.sendMediaGroup(chatId, group.map((item, index) => ({
+      type: item.type,
+      media: item.media,
+      ...(i === 0 && index === 0 ? { caption: escapeMarkdown(result.caption), parse_mode: "MarkdownV2" } : {})
+    })));
+  }
+
+  return await bot.deleteMessage(chatId, waitingMsg.message_id).catch(() => {});
+}
+
 
         const videoMsg = await bot.sendVideo(chatId, result.video, {
           caption,
