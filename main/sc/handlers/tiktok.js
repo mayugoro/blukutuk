@@ -1,3 +1,4 @@
+// handlers/tiktok.js
 const axios = require("axios");
 
 function delay(ms) {
@@ -15,18 +16,26 @@ async function downloadFromTikwm(url) {
       throw new Error("❌ Data tidak ditemukan di respons TikTok.");
     }
 
-    const type = data.images ? "slide" : "video";
+    const isSlide = Array.isArray(data.images) && data.images.length > 0;
+    const type = isSlide ? "slide" : "video";
 
-    // Jika slide / photo
+    // Jika konten berupa SLIDE (gambar)
     if (type === "slide") {
-      const images = data.images.map(img => ({
-        type: "photo",
-        media: img.url
-      }));
+      const images = data.images
+        .filter(img => img && img.url)
+        .map(img => ({
+          type: "photo",
+          media: img.url
+        }));
 
-      const caption = `👤 @${data.author?.unique_id || "-"}\n🎵 ${data.music?.title || "tanpa musik"}\n\n${data.title || ""}`;
+      if (images.length === 0) {
+        throw new Error("❌ Gambar slide tidak valid.");
+      }
 
-      await delay(2000); // agar URL stabil
+      // Tambahkan caption fallback
+      const caption = "Diunduh melalui: @iniuntukdonlotvidiotiktokbot";
+
+      await delay(2000); // agar URL lebih stabil
 
       return {
         type: "slide",
@@ -36,25 +45,25 @@ async function downloadFromTikwm(url) {
       };
     }
 
-    // Jika video biasa
-    const noWatermark = data.video.noWatermark;
+    // Jika konten berupa VIDEO
+    const noWatermark = data.video?.noWatermark;
     const audioUrl = data.music?.play_url;
 
-    if (!noWatermark || !audioUrl) {
-      throw new Error("❌ Video atau audio tidak ditemukan.");
+    if (!noWatermark) {
+      throw new Error("❌ Video tidak ditemukan.");
     }
 
-    await delay(2000); // agar URL lebih stabil
+    await delay(2000);
 
     return {
       type: "video",
       video: noWatermark,
-      audioUrl,
+      audioUrl: audioUrl || null,
     };
 
   } catch (err) {
-    console.error("Error mengambil data TikTok:", err.message);
-    throw new Error(`❌ Gagal mendapatkan data dari TikTok: ${err.message}`);
+    console.error("Error TikTok:", err.message);
+    throw new Error(`❌ Gagal mendapatkan data dari TikTok.`);
   }
 }
 
