@@ -3,7 +3,8 @@ const { incrementStat, saveLog, saveUrlCache } = require("../db");
 
 async function downloadFromIgReels(url) {
   try {
-    const res = await axios.get(`https://insta.bdbots.xyz/dl?url=${encodeURIComponent(url)}`);
+    const apiEndpoint = process.env.igreels + encodeURIComponent(url);
+    const res = await axios.get(apiEndpoint);
     const media = res.data?.data?.media;
 
     if (!media || media.length === 0) {

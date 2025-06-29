@@ -1,4 +1,3 @@
-// handlers/tiktok.js
 const axios = require("axios");
 
 function delay(ms) {
@@ -7,7 +6,8 @@ function delay(ms) {
 
 async function downloadFromTikwm(url) {
   try {
-    const res = await axios.get(`https://api.tiklydown.eu.org/api/download?url=${encodeURIComponent(url)}`);
+    const apiEndpoint = process.env.apitiktok + encodeURIComponent(url);
+    const res = await axios.get(apiEndpoint);
     const data = res.data;
 
     console.log("RESPONS MENTAH:", data);
@@ -19,7 +19,6 @@ async function downloadFromTikwm(url) {
     const isSlide = Array.isArray(data.images) && data.images.length > 0;
     const type = isSlide ? "slide" : "video";
 
-    // Jika konten berupa SLIDE (gambar)
     if (type === "slide") {
       const images = data.images
         .filter(img => img && img.url)
@@ -32,10 +31,9 @@ async function downloadFromTikwm(url) {
         throw new Error("❌ Gambar slide tidak valid.");
       }
 
-      // Tambahkan caption fallback
       const caption = "Diunduh melalui: @iniuntukdonlotvidiotiktokbot";
 
-      await delay(2000); // agar URL lebih stabil
+      await delay(2000);
 
       return {
         type: "slide",
@@ -45,7 +43,6 @@ async function downloadFromTikwm(url) {
       };
     }
 
-    // Jika konten berupa VIDEO
     const noWatermark = data.video?.noWatermark;
     const audioUrl = data.music?.play_url;
 

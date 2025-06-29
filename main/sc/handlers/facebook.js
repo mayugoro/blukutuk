@@ -3,7 +3,8 @@ const { incrementStat, saveLog, saveUrlCache } = require("../db");
 
 async function downloadFromFacebook(url) {
   try {
-    const res = await axios.get(`https://fb.bdbots.xyz/dl?url=${encodeURIComponent(url)}`);
+    const apiEndpoint = process.env.apifb + encodeURIComponent(url);
+    const res = await axios.get(apiEndpoint);
     const data = res.data;
 
     if (!data || data.status !== "success" || !Array.isArray(data.downloads) || data.downloads.length === 0) {
