@@ -180,39 +180,46 @@ bot.on("message", async (msg) => {
         return await bot.deleteMessage(chatId, waitingMsg.message_id).catch(() => {});
       }
 
-      if (/tiktok\.com/.test(url)) {
-        const result = await downloadFromTikwm(url);
-        logRequest("tiktok");
+      // Perbaikan hanya bagian TikTok saja
+// tanpa mengubah struktur, chunk array, atau logika lain
 
-        if (result.type === "slide") {
-  const chunks = chunkArray(result.images, 10); // Telegram: max 10 media per album
+if (/tiktok\.com/.test(url)) {
+  try {
+    const result = await downloadFromTikwm(url);
+    logRequest("tiktok");
 
-  for (let i = 0; i < chunks.length; i++) {
-    const group = chunks[i];
+    if (result.type === "slide") {
+      const chunks = chunkArray(result.images, 10); // Telegram: max 10 media per album
 
-    await bot.sendMediaGroup(chatId, group.map((item, index) => ({
-      type: item.type,
-      media: item.media,
-      ...(i === 0 && index === 0 ? { caption: escapeMarkdown(result.caption), parse_mode: "MarkdownV2" } : {})
-    })));
+      for (let i = 0; i < chunks.length; i++) {
+        const group = chunks[i];
+
+        await bot.sendMediaGroup(chatId, group.map((item, index) => ({
+          type: item.type,
+          media: item.media,
+          ...(i === 0 && index === 0 ? { caption: escapeMarkdown(result.caption), parse_mode: "MarkdownV2" } : {})
+        })));
+      }
+
+      return await bot.deleteMessage(chatId, waitingMsg.message_id).catch(() => {});
+    }
+
+    const videoMsg = await bot.sendVideo(chatId, result.video, {
+      caption,
+      parse_mode: "MarkdownV2",
+      reply_markup: {
+        inline_keyboard: [[{ text: "MUSIK", callback_data: audioKey }]]
+      }
+    });
+
+    saveAudio(audioKey, result.audioUrl, chatId, videoMsg.message_id);
+    saveUrlCache(url, "tiktok", result.video, result.audioUrl, caption);
+
+    return await bot.deleteMessage(chatId, waitingMsg.message_id).catch(() => {});
+  } catch (e) {
+    await bot.sendMessage(chatId, "GAGAL ❌: belum support download story tiktok 😁🗿.");
+    return await bot.deleteMessage(chatId, waitingMsg.message_id).catch(() => {});
   }
-
-  return await bot.deleteMessage(chatId, waitingMsg.message_id).catch(() => {});
-}
-
-
-        const videoMsg = await bot.sendVideo(chatId, result.video, {
-          caption,
-          parse_mode: "MarkdownV2",
-          reply_markup: {
-            inline_keyboard: [[{ text: "MUSIK", callback_data: audioKey }]]
-          }
-        });
-
-        saveAudio(audioKey, result.audioUrl, chatId, videoMsg.message_id);
-        saveUrlCache(url, "tiktok", result.video, result.audioUrl, caption);
-
-        return await bot.deleteMessage(chatId, waitingMsg.message_id).catch(() => {});
       }
 
       throw new Error("❌ Link tidak dikenali. Hanya mendukung TikTok, Facebook, dan Instagram.");
@@ -288,9 +295,10 @@ bot.onText(/^\/stats$/, (msg) => {
       countLast7Days("instagram")
     ]).then(([tiktokCount, fbCount, igCount]) => {
       const uptimeMs = Date.now() - startTime;
-      const uptimeH = Math.floor(uptimeMs / (1000 * 60 * 60));
+      const uptimeDays = Math.floor(uptimeMs / (1000 * 60 * 60 * 24));
+      const uptimeH = Math.floor((uptimeMs / (1000 * 60 * 60)) % 24);
       const uptimeM = Math.floor((uptimeMs / (1000 * 60)) % 60);
-      const uptimeStr = `${uptimeH} jam ${uptimeM} menit`;
+      const uptimeStr = `${uptimeDays} hari ${uptimeH} jam ${uptimeM} menit`;
 
       const statMsg = `
 \`\`\`
@@ -306,7 +314,8 @@ bot.onText(/^\/stats$/, (msg) => {
 `;
 
       bot.sendMessage(msg.chat.id, statMsg, { parse_mode: "MarkdownV2" });
-    }).catch(() => {
+    }).catch((e) => {
+      console.error("❌ Gagal ambil statistik:", e);
       bot.sendMessage(msg.chat.id, "❌ Gagal mengambil statistik.");
     });
   });
