@@ -43,9 +43,21 @@ bot.on("message", async (msg) => {
   if (ADMIN_IDS.includes(chatId.toString()) && adminSession.has(chatId)) {
     const state = adminSession.get(chatId);
     if (text && text.toLowerCase() === "/cancel") {
-      adminSession.delete(chatId);
-      return bot.sendMessage(chatId, "❌ Broadcast dibatalkan.");
-    }
+  adminSession.delete(chatId);
+
+  // Hapus pesan user
+  setTimeout(() => {
+    bot.deleteMessage(chatId, msg.message_id).catch(() => {});
+  }, 4000);
+
+  // Kirim pesan balasan dan hapus otomatis
+  return bot.sendMessage(chatId, "❌ Broadcast dibatalkan.").then(sent => {
+    setTimeout(() => {
+      bot.deleteMessage(chatId, sent.message_id).catch(() => {});
+    }, 4000);
+  });
+}
+
 
     if (state === "AWAITING_BROADCAST") {
       getAllUsers(async (err, userIds) => {
@@ -280,8 +292,16 @@ bot.onText(/^\/broadcast$/, (msg) => {
   if (!ADMIN_IDS.includes(senderId)) return;
 
   adminSession.set(msg.chat.id, "AWAITING_BROADCAST");
-  bot.sendMessage(msg.chat.id, "📢 Masukkan isi pengumuman (bisa teks atau media):\nKetik /cancel untuk membatalkan.");
+
+  bot.sendMessage(msg.chat.id, "📢 Masukkan isi pengumuman (bisa teks atau media):\nKetik /cancel untuk membatalkan.")
+    .then(sent => {
+      // Hapus pesan prompt setelah 4 detik
+      setTimeout(() => {
+        bot.deleteMessage(msg.chat.id, sent.message_id).catch(() => {});
+      }, 4000);
+    });
 });
+
 
 bot.onText(/^\/stats$/, (msg) => {
   if (!ADMIN_IDS.includes(msg.chat.id.toString())) return;
@@ -300,22 +320,22 @@ bot.onText(/^\/stats$/, (msg) => {
       const uptimeM = Math.floor((uptimeMs / (1000 * 60)) % 60);
       const uptimeStr = `${uptimeDays} hari ${uptimeH} jam ${uptimeM} menit`;
 
-      const statMsg = `
-\`\`\`
-✨STATISTIK BOT✨
-🧽 7 HARI
-————————————————————————
-🀄️ Total User        : ${userIds.length}
-💌 Request TikTok    : ${tiktokCount}
-💌 Request Facebook  : ${fbCount}
-💌 Request Instagram : ${igCount}
-⌚️ Uptime            : ${uptimeStr}
-\`\`\`
-`;
+      const statMsg = [
+        '`✨ DETAIL STATS BOT ✨`',
+        '',
+        '`🧮 Total User        : ' + userIds.length.toString().padStart(1) + '`',
+        '`💌 Request TikTok    : ' + tiktokCount.toString().padStart(1) + '`',
+        '`💌 Request Facebook  : ' + fbCount.toString().padStart(1) + '`',
+        '`💌 Request Instagram : ' + igCount.toString().padStart(1) + '`',
+        '`⌚️ Uptime            : ' + uptimeStr + '`'
+      ].join('\n');
 
-      bot.sendMessage(msg.chat.id, statMsg, { parse_mode: "MarkdownV2" });
-    }).catch((e) => {
-      console.error("❌ Gagal ambil statistik:", e);
+      bot.sendMessage(msg.chat.id, statMsg, { parse_mode: "MarkdownV2" }).then(sentMsg => {
+        setTimeout(() => {
+          bot.deleteMessage(msg.chat.id, sentMsg.message_id).catch(() => {});
+        }, 4000); // hapus setelah 4 detik
+      });
+    }).catch(() => {
       bot.sendMessage(msg.chat.id, "❌ Gagal mengambil statistik.");
     });
   });
